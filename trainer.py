@@ -1,5 +1,5 @@
 '''
-# Variational AutoEncoder Trainer
+# Beta Variational AutoEncoder Trainer
 # Author: Zhihui Lu
 # Date: 2018/10/17
 '''
