@@ -1,5 +1,5 @@
 '''
-# Variational AutoEncoder Model
+# Beta Variational AutoEncoder Model
 # Author: Zhihui Lu
 # Date: 2018/10/17
 # Reference: "https://github.com/wuga214/IMPLEMENTATION_Variational-Auto-Encoder"
