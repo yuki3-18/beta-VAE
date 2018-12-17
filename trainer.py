@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, mnist_encoder, mnist_decoder
+from network import cnn_encoder, cnn_decoder, mnist_encoder, mnist_decoder, encoder, decoder, deep_encoder, deep_decoder
 from model import Variational_Autoencoder
 import utils
 
@@ -18,44 +18,59 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'          #for windows
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def main():
-    parser = argparse.ArgumentParser(description='py, train_data_txt, val_data_txt, outdir')
-
-    parser.add_argument('--train_data_txt', '-i1', default='', help='train data txt')
-
-    parser.add_argument('--val_data_txt', '-i2', default='', help='validation data txt')
-
-    parser.add_argument('--outdir', '-i3', default='./beta_0.1', help='outdir')
-
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='py, train_data_txt, val_data_txt, outdir')
+    #
+    # parser.add_argument('--train_data_txt', '-i1', default='', help='train data txt')
+    #
+    # parser.add_argument('--val_data_txt', '-i2', default='', help='validation data txt')
+    #
+    # parser.add_argument('--outdir', '-i3', default='./beta_0.1', help='outdir')
+    #
+    # args = parser.parse_args()
 
     # check folder
-    if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'train'))):
-        os.makedirs(os.path.join(args.outdir, 'tensorboard', 'train'))
-    if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'val'))):
-        os.makedirs(os.path.join(args.outdir, 'tensorboard', 'val'))
-    if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'rec'))):
-        os.makedirs(os.path.join(args.outdir, 'tensorboard', 'rec'))
-    if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'kl'))):
-        os.makedirs(os.path.join(args.outdir, 'tensorboard', 'kl'))
-    if not (os.path.exists(os.path.join(args.outdir, 'model'))):
-        os.makedirs(os.path.join(args.outdir, 'model'))
+    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'train'))):
+    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'train'))
+    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'val'))):
+    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'val'))
+    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'rec'))):
+    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'rec'))
+    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'kl'))):
+    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'kl'))
+    # if not (os.path.exists(os.path.join(args.outdir, 'model'))):
+    #     os.makedirs(os.path.join(args.outdir, 'model'))
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_float("beta", 0.1, "hyperparameter beta")
-    flags.DEFINE_integer("num_of_val", 1000, "number of validation data")
+    flags.DEFINE_string("train_data_txt", "./input/shift/axis1/noise/train.txt", "train data txt")
+    flags.DEFINE_string("val_data_txt", "./input/shift/axis1/noise/val.txt", "validation data txt")
+    flags.DEFINE_string("outdir", "./output/shift/axis1/noise/z3", "outdir")
+    flags.DEFINE_float("beta", 1, "hyperparameter beta")
+    flags.DEFINE_integer("num_of_val", 3000, "number of validation data")
     flags.DEFINE_integer("batch_size", 30, "batch size")
     flags.DEFINE_integer("num_iteration", 50001, "number of iteration")
     flags.DEFINE_integer("save_loss_step", 50, "step of save loss")
     flags.DEFINE_integer("save_model_step", 500, "step of save model and validation")
-    flags.DEFINE_integer("shuffle_buffer_size", 10000, "buffer size of shuffle")
-    flags.DEFINE_integer("latent_dim", 2, "latent dim")
-    flags.DEFINE_list("image_size", [512, 512, 1], "image size")
+    flags.DEFINE_integer("shuffle_buffer_size", 1000, "buffer size of shuffle")
+    flags.DEFINE_integer("latent_dim", 3, "latent dim")
+    flags.DEFINE_list("image_size", [9*9*9], "image size")
     FLAGS = flags.FLAGS
+    
+    # check folder
+    if not (os.path.exists(os.path.join(FLAGS.outdir, 'tensorboard', 'train'))):
+        os.makedirs(os.path.join(FLAGS.outdir, 'tensorboard', 'train'))
+    if not (os.path.exists(os.path.join(FLAGS.outdir, 'tensorboard', 'val'))):
+        os.makedirs(os.path.join(FLAGS.outdir, 'tensorboard', 'val'))
+    if not (os.path.exists(os.path.join(FLAGS.outdir, 'tensorboard', 'rec'))):
+        os.makedirs(os.path.join(FLAGS.outdir, 'tensorboard', 'rec'))
+    if not (os.path.exists(os.path.join(FLAGS.outdir, 'tensorboard', 'kl'))):
+        os.makedirs(os.path.join(FLAGS.outdir, 'tensorboard', 'kl'))
+    if not (os.path.exists(os.path.join(FLAGS.outdir, 'model'))):
+        os.makedirs(os.path.join(FLAGS.outdir, 'model'))
 
     # read list
-    train_data_list = io.load_list(args.train_data_txt)
-    val_data_list = io.load_list(args.val_data_txt)
+    train_data_list = io.load_list(FLAGS.train_data_txt)
+    val_data_list = io.load_list(FLAGS.val_data_txt)
 
     # shuffle list
     random.shuffle(train_data_list)
@@ -65,7 +80,10 @@ def main():
         val_step += 1
 
     # load train data and validation data
-    train_set = tf.data.TFRecordDataset(train_data_list)
+    train_set = tf.data.Dataset.list_files(train_data_list)
+    train_set = train_set.apply(tf.contrib.data.parallel_interleave(
+        tf.data.TFRecordDataset, cycle_length=6))
+    # train_set = tf.data.TFRecordDataset(train_data_list)
     train_set = train_set.map(lambda x: _parse_function(x, image_size=FLAGS.image_size),
                               num_parallel_calls=os.cpu_count())
     train_set = train_set.shuffle(buffer_size=FLAGS.shuffle_buffer_size)
@@ -74,7 +92,10 @@ def main():
     train_iter = train_set.make_one_shot_iterator()
     train_data = train_iter.get_next()
 
-    val_set = tf.data.TFRecordDataset(val_data_list)
+    val_set = tf.data.Dataset.list_files(val_data_list)
+    val_set = val_set.apply(tf.contrib.data.parallel_interleave(
+        tf.data.TFRecordDataset, cycle_length=os.cpu_count()))
+    # val_set = tf.data.TFRecordDataset(val_data_list)
     val_set = val_set.map(lambda x: _parse_function(x, image_size=FLAGS.image_size),
                           num_parallel_calls=os.cpu_count())
     val_set = val_set.repeat()
@@ -86,17 +107,18 @@ def main():
     init_op = tf.group(tf.initializers.global_variables(),
                        tf.initializers.local_variables())
 
-    with tf.Session(config = utils.config) as sess:
+    # with tf.Session(config = utils.config) as sess:
+    with tf.Session() as sess:
         # set network
         kwargs = {
             'sess': sess,
-            'outdir': args.outdir,
+            'outdir': FLAGS.outdir,
             'beta': FLAGS.beta,
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': cnn_encoder,
-            'decoder': cnn_decoder
+            'encoder': encoder,
+            'decoder': decoder
         }
         VAE = Variational_Autoencoder(**kwargs)
 
@@ -104,10 +126,10 @@ def main():
         utils.cal_parameter()
 
         # prepare tensorboard
-        writer_train = tf.summary.FileWriter(os.path.join(args.outdir, 'tensorboard', 'train'), sess.graph)
-        writer_val = tf.summary.FileWriter(os.path.join(args.outdir, 'tensorboard', 'val'))
-        writer_rec = tf.summary.FileWriter(os.path.join(args.outdir, 'tensorboard', 'rec'))
-        writer_kl = tf.summary.FileWriter(os.path.join(args.outdir, 'tensorboard', 'kl'))
+        writer_train = tf.summary.FileWriter(os.path.join(FLAGS.outdir, 'tensorboard', 'train'), sess.graph)
+        writer_val = tf.summary.FileWriter(os.path.join(FLAGS.outdir, 'tensorboard', 'val'))
+        writer_rec = tf.summary.FileWriter(os.path.join(FLAGS.outdir, 'tensorboard', 'rec'))
+        writer_kl = tf.summary.FileWriter(os.path.join(FLAGS.outdir, 'tensorboard', 'kl'))
 
         value_loss = tf.Variable(0.0)
         tf.summary.scalar("loss", value_loss)
@@ -149,7 +171,7 @@ def main():
                 writer_val.add_summary(summary_val, i)
 
 # # load tfrecord function
-def _parse_function(record, image_size=[512, 512, 1]):
+def _parse_function(record, image_size=[9, 9, 9]):
     keys_to_features = {
         'img_raw': tf.FixedLenFeature(np.prod(image_size), tf.float32),
     }

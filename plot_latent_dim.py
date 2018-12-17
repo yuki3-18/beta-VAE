@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder
+from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder
 from model import Variational_Autoencoder
 import utils
 import matplotlib.pyplot as plt
@@ -17,31 +17,25 @@ import matplotlib.pyplot as plt
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    #for windows
 
 def main():
-    parser = argparse.ArgumentParser(description='py, test_data_txt, model, outdir')
-
-    parser.add_argument('--test_data_txt', '-i1', default='')
-
-    parser.add_argument('--model', '-i2', default='./model_{}'.format(50000))
-
-    parser.add_argument('--outdir', '-i3', default='')
-
-    args = parser.parse_args()
-
-    # check folder
-    if not (os.path.exists(args.outdir)):
-        os.makedirs(args.outdir)
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_float("beta", 0.1, "hyperparameter beta")
-    flags.DEFINE_integer("num_of_test", 100, "number of test data")
+    flags.DEFINE_string("test_data_txt", "./input/shift/axis1/test.txt", "i1")
+    flags.DEFINE_string("model", './output/shift/axis1/z3/model/model_{}'.format(22000), "i2")
+    flags.DEFINE_string("outdir", "./output/shift/axis1/z3/latent/", "i3")
+    flags.DEFINE_float("beta", 1, "hyperparameter beta")
+    flags.DEFINE_integer("num_of_test", 3000, "number of test data")
     flags.DEFINE_integer("batch_size", 1, "batch size")
-    flags.DEFINE_integer("latent_dim", 2, "latent dim")
-    flags.DEFINE_list("image_size", [512, 512, 1], "image size")
+    flags.DEFINE_integer("latent_dim", 3, "latent dim")
+    flags.DEFINE_list("image_size", [9 * 9 * 9], "image size")
     FLAGS = flags.FLAGS
 
+    # check folder
+    if not (os.path.exists(FLAGS.outdir)):
+        os.makedirs(FLAGS.outdir)
+
     # read list
-    test_data_list = io.load_list(args.test_data_txt)
+    test_data_list = io.load_list(FLAGS.test_data_txt)
 
     # test step
     test_step = FLAGS.num_of_test // FLAGS.batch_size
@@ -66,20 +60,20 @@ def main():
         # set network
         kwargs = {
             'sess': sess,
-            'outdir': args.outdir,
+            'outdir': FLAGS.outdir,
             'beta': FLAGS.beta,
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': cnn_encoder,
-            'decoder': cnn_decoder
+            'encoder': encoder,
+            'decoder': decoder
         }
         VAE = Variational_Autoencoder(**kwargs)
 
         sess.run(init_op)
 
         # testing
-        VAE.restore_model(args.model)
+        VAE.restore_model(FLAGS.model)
         tbar = tqdm(range(test_step), ascii=True)
         preds = []
         ori = []
@@ -92,17 +86,115 @@ def main():
             latent_space.append(z)
 
         latent_space = np.asarray(latent_space)
+        print("latent_space =",latent_space.shape)
+        print(latent_space[0])
+        print(latent_space[1])
+        print(latent_space[2])
+        print(latent_space[3])
+        print(latent_space[4])
+        # print(latent_space[10])
+        # print(latent_space[1000])
+        # print(latent_space[69])
+        # print(latent_space[2999])
+
         plt.figure(figsize=(8, 6))
         fig = plt.scatter(latent_space[:, 0], latent_space[:, 1])
+        plt.xlabel('dim_1')
+        plt.ylabel('dim_2')
+        plt.title('latent distribution')
+        plt.savefig(FLAGS.outdir + "latent_space.png")
+
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+        utils.matplotlib_plt(latent_space)
+        ax.scatter(latent_space[:, 0], latent_space[:, 1], latent_space[:, 2], marker="x")
+        # ax.scatter(latent_space[:5, 0], latent_space[:5, 1], latent_space[:5, 2], marker="o", color='orange')
+        plt.title('latent distribution')
+        # plt.show()
+
+        plt.figure(figsize=(8, 6))
+        plt.scatter(latent_space[:, 0], latent_space[:, 1])
+        plt.scatter(latent_space[:5, 0],latent_space[:5, 1], color='orange')
         plt.title('latent distribution')
         plt.xlabel('dim_1')
         plt.ylabel('dim_2')
+        plt.savefig(FLAGS.outdir + "back_projection.png")
         plt.show()
 
+        #### display a 2D manifold of digits
+        n = 13
+        digit_size = 9
+        figure1 = np.zeros((digit_size * n, digit_size * n))
+        figure2 = np.zeros((digit_size * n, digit_size * n))
+        figure3 = np.zeros((digit_size * n, digit_size * n))
+        # linearly spaced coordinates corresponding to the 2D plot
+        # of digit classes in the latent space
+        grid_x = np.linspace(-3, 3, n)
+        grid_y = np.linspace(-3, 3, n)[::-1]
+
+        for i, yi in enumerate(grid_y):
+            for j, xi in enumerate(grid_x):
+                # z_sample = np.array([[xi, yi]])
+                z_sample = np.array([[xi, yi, 0]])
+                # z_sample = np.array([[xi, yi, 0, 0]])
+                x_decoded = VAE.generate_sample(z_sample)
+                generate_data = x_decoded[0].reshape(digit_size, digit_size, digit_size)
+                digit_axial = generate_data[4, :, :]
+                digit_coronal = generate_data[:, 4, :]
+                digit_sagital = generate_data[:, :, 4]
+                digit1 = np.reshape(digit_axial, [9, 9])
+                digit2 = np.reshape(digit_coronal, [9, 9])
+                digit3 = np.reshape(digit_sagital, [9, 9])
+                # plt.imshow(digit, cmap='Greys_r')
+                # plt.savefig(str(i) + '@' + str(j) + 'fig.png')
+                figure1[i * digit_size: (i + 1) * digit_size,
+                j * digit_size: (j + 1) * digit_size] = digit1
+                figure2[i * digit_size: (i + 1) * digit_size,
+                j * digit_size: (j + 1) * digit_size] = digit2
+                figure3[i * digit_size: (i + 1) * digit_size,
+                j * digit_size: (j + 1) * digit_size] = digit3
+
+        # set graph
+        start_range = digit_size // 2
+        end_range = n * digit_size + start_range + 1
+        pixel_range = np.arange(start_range, end_range, digit_size)
+        sample_range_x = np.round(grid_x, 1)
+        sample_range_y = np.round(grid_y, 1)
+
+        # axial
+        plt.figure(figsize=(10, 10))
+        plt.xticks(pixel_range, sample_range_x)
+        plt.yticks(pixel_range, sample_range_y)
+        plt.xlabel("z[0]")
+        plt.ylabel("z[1]")
+        plt.imshow(figure1, cmap='Greys_r')
+        plt.savefig(FLAGS.outdir + "digit_axial.png")
+        plt.show()
+
+        # coronal
+        plt.figure(figsize=(10, 10))
+        plt.xticks(pixel_range, sample_range_x)
+        plt.yticks(pixel_range, sample_range_y)
+        plt.xlabel("z[0]")
+        plt.ylabel("z[1]")
+        plt.imshow(figure2, cmap='Greys_r')
+        plt.savefig(FLAGS.outdir + "digit_coronal.png")
+        # plt.show()
+
+        # sagital
+        plt.figure(figsize=(10, 10))
+        plt.xticks(pixel_range, sample_range_x)
+        plt.yticks(pixel_range, sample_range_y)
+        plt.xlabel("z[0]")
+        plt.ylabel("z[1]")
+        plt.imshow(figure3, cmap='Greys_r')
+        plt.savefig(FLAGS.outdir + "digit_sagital.png")
+        # plt.show()
 
 
 # # load tfrecord function
-def _parse_function(record, image_size=[512, 512, 1]):
+def _parse_function(record, image_size=[9, 9, 9]):
     keys_to_features = {
         'img_raw': tf.FixedLenFeature(np.prod(image_size), tf.float32),
     }

@@ -12,38 +12,47 @@ import SimpleITK as sitk
 from tqdm import tqdm
 import csv
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder
+from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder, deep_encoder, deep_decoder
 from model import Variational_Autoencoder
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import utils
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    #for windows
 
 def main():
-    parser = argparse.ArgumentParser(description='py, test_data_txt, model, outdir')
+#     parser = argparse.ArgumentParser(description='py, test_data_txt, model, outdir')
+#
+#     parser.add_argument('--test_data_txt', '-i1', default='')
+#
+#     parser.add_argument('--model', '-i2', default='./model_{}'.format(50000))
+#
+#     parser.add_argument('--outdir', '-i3', default='')
+#
+#     args = parser.parse_args()
 
-    parser.add_argument('--test_data_txt', '-i1', default='')
-
-    parser.add_argument('--model', '-i2', default='./model_{}'.format(50000))
-
-    parser.add_argument('--outdir', '-i3', default='')
-
-    args = parser.parse_args()
-
-    # check folder
-    if not (os.path.exists(args.outdir)):
-        os.makedirs(args.outdir)
+    # # check folder
+    # if not (os.path.exists(args.outdir)):
+    #     os.makedirs(args.outdir)
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_float("beta", 0.1, "hyperparameter beta")
-    flags.DEFINE_integer("num_of_test", 100, "number of test data")
+    flags.DEFINE_string("test_data_txt", "./input/shift/axis1/noise/test.txt", "i1")
+    flags.DEFINE_string("model", './output/shift/axis1/noise/z3/model/model_{}'.format(22000), "i2")
+    flags.DEFINE_string("outdir", "./output/shift/axis1/noise/z3/gen/", "i3")
+    flags.DEFINE_float("beta", 1, "hyperparameter beta")
+    flags.DEFINE_integer("num_of_test", 3000, "number of test data")
     flags.DEFINE_integer("batch_size", 1, "batch size")
-    flags.DEFINE_integer("latent_dim", 2, "latent dim")
-    flags.DEFINE_list("image_size", [512, 512, 1], "image size")
+    flags.DEFINE_integer("latent_dim", 3, "latent dim")
+    flags.DEFINE_list("image_size", [9*9*9], "image size")
     FLAGS = flags.FLAGS
 
+    # check folder
+    if not (os.path.exists(FLAGS.outdir)):
+        os.makedirs(FLAGS.outdir)
+
     # read list
-    test_data_list = io.load_list(args.test_data_txt)
+    test_data_list = io.load_list(FLAGS.test_data_txt)
 
     # test step
     test_step = FLAGS.num_of_test // FLAGS.batch_size
@@ -67,71 +76,123 @@ def main():
         # set network
         kwargs = {
             'sess': sess,
-            'outdir': args.outdir,
+            'outdir': FLAGS.outdir,
             'beta': FLAGS.beta,
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': cnn_encoder,
-            'decoder': cnn_decoder
+            'encoder': encoder,
+            'decoder': decoder
         }
         VAE = Variational_Autoencoder(**kwargs)
 
         sess.run(init_op)
 
         # testing
-        VAE.restore_model(args.model)
+        VAE.restore_model(FLAGS.model)
         tbar = tqdm(range(test_step), ascii=True)
         preds = []
         ori = []
+        test_max = 667.0
+        test_min = 0.0
+
         for k in tbar:
             test_data_batch = sess.run(test_data)
             ori_single = test_data_batch
             preds_single = VAE.reconstruction_image(ori_single)
-            preds_single = preds_single[0, :, :, 0]
-            ori_single = ori_single[0, :, :, 0]
+            # print(preds_single)
+            preds_single = preds_single[0, :]
+            ori_single = ori_single[0, :]
 
             preds.append(preds_single)
             ori.append(ori_single)
 
-        # # label
-        ji = []
+        # preds = np.array(preds)
+        # ori = np.array(ori)
+        preds = np.reshape(preds, [FLAGS.num_of_test, 9 , 9 , 9])
+        ori = np.reshape(ori, [FLAGS.num_of_test, 9 , 9 , 9])
+        # preds = preds.tolist()
+        # ori = ori.tolist()
+        n_preds = preds
+        n_ori = ori
+
+        preds = preds * (test_max - test_min) + test_min
+        ori = ori * (test_max - test_min) + test_min
+
+        # label
+        generalization_single = []
+        # generalization_single = np.zeros([FLAGS.num_of_test, 9 * 9 * 9])
         for j in range(len(preds)):
 
             # EUDT
             eudt_image = sitk.GetImageFromArray(preds[j])
-            eudt_image.SetSpacing([1, 1])
-            eudt_image.SetOrigin([0, 0])
+            # eudt_image.SetSpacing([1, 1])
+            eudt_image.SetOrigin([0, 0, 0])
+            # eudt_image.SetSize(0, 9)
+            # eudt_image.SetSize(1, 9)
+            # eudt_image.SetSize(2, 9)
+            eudt_image.SetSpacing([0.885,0.885,1])
 
-            label = np.where(preds[j] > 0, 0, 1)
-            label_image = sitk.GetImageFromArray(label)
-            label_image.SetSpacing([1, 1])
-            label_image.SetOrigin([0, 0])
+            # label = np.where(preds[j] > 0, 0, 1)
+            # label_image = sitk.GetImageFromArray(label)
+            # label_image.SetSpacing([1, 1])
+            # label_image.SetOrigin([0, 0])
 
-            ori_label = np.where(ori[j] > 0, 0, 1)
-            ori_label_image = sitk.GetImageFromArray(ori_label)
-            ori_label_image.SetSpacing([1, 1])
-            ori_label_image.SetOrigin([0, 0])
+            # ori_label = np.where(ori[j] > 0, 0, 1)
+            # ori_label_image = sitk.GetImageFromArray(ori_label)
+            # ori_label_image.SetSpacing([1, 1])
+            # ori_label_image.SetOrigin([0, 0])
 
             # # calculate ji
-            ji.append(utils.jaccard(label, ori_label))
+            # ji.append(utils.jaccard(label, ori_label))
 
             # output image
-            io.write_mhd_and_raw(eudt_image, '{}.mhd'.format(os.path.join(args.outdir, 'EUDT', 'recon_{}'.format(j))))
-            io.write_mhd_and_raw(label_image, '{}.mhd'.format(os.path.join(args.outdir, 'label', 'recon_{}'.format(j))))
 
-    generalization = np.mean(ji)
-    print('generalization = %f' % generalization)
+            io.write_mhd_and_raw(eudt_image, '{}.mhd'.format(os.path.join(FLAGS.outdir, 'EUDT', 'recon_{}'.format(j))))
+            # io.write_mhd_and_raw(preds[j], '{}.raw'.format(os.path.join(FLAGS.outdir, 'recon_{}'.format(j))))
+            # io.write_mhd_and_raw(label_image, '{}.mhd'.format(os.path.join(FLAGS.outdir, 'label', 'recon_{}'.format(j))))
+
+            # print(preds.shape)
+            # print(ori.shape)
+            # generalization_single.append(utils.L1norm(ori[j], preds[j]))
+
+            # np.append(generalization_single, ori - preds)
+
+        # print(generalization_single.shape)
+        generalization = np.average(np.average(abs(ori - preds), axis=0))
+        print('generalization = %f' % generalization)
+
+        n_generalization = np.average(np.average(abs(n_ori - n_preds), axis=0))
+        print('n_generalization = %f' % n_generalization)
+
 
     # output csv file
-    with open(os.path.join(args.outdir, 'generalization.csv'), 'w', newline='') as file:
+    with open(os.path.join(FLAGS.outdir, 'generalization.csv'), 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerows(ji)
+        # writer.writerows(generalization_single)
         writer.writerow(['generalization= ', generalization])
 
+    # plot reconstruction
+    fig, axes = plt.subplots(ncols=10, nrows=2, figsize=(18, 4))
+    X = ori[:,4,:]
+    Xe = preds[:,4,:]
+    print(Xe.shape)
+
+    for i in range(10):
+        axes[0, i].imshow(X[i, :].reshape(9, 9),cmap=cm.Greys_r)
+        axes[0, i].set_title('original %d' % i)
+        axes[0, i].get_xaxis().set_visible(False)
+        axes[0, i].get_yaxis().set_visible(False)
+
+        axes[1, i].imshow(Xe[i, :].reshape(9, 9),cmap=cm.Greys_r)
+        axes[1, i].set_title('reconstruction %d' % i)
+        axes[1, i].get_xaxis().set_visible(False)
+        axes[1, i].get_yaxis().set_visible(False)
+    plt.savefig(FLAGS.outdir + "reconstruction.png")
+    # plt.show()
 
 # # load tfrecord function
-def _parse_function(record, image_size=[512, 512, 1]):
+def _parse_function(record, image_size=[9 * 9 * 9]):
     keys_to_features = {
         'img_raw': tf.FixedLenFeature(np.prod(image_size), tf.float32),
     }

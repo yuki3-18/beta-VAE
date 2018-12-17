@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import axes3d
 
 # session config
 config = tf.ConfigProto(
@@ -34,3 +36,23 @@ def jaccard(im1, im2):
         raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
 
     return np.double(np.bitwise_and(im1, im2).sum()) / np.double(np.bitwise_or(im1, im2).sum())
+
+# calculate L1
+def L1norm(im1, im2):
+    im1 = np.asarray(im1)
+    im2 = np.asarray(im2)
+
+    if im1.shape != im2.shape:
+        raise ValueError("Shape mismatch: im1 and im2 must have the same shape.")
+
+    return np.double(np.mean(abs(im1 - im2)))
+
+def matplotlib_plt(X):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+
+    ax.scatter(X[:,0], X[:,1], X[:,2] , marker="x"
+               # , c=y/len(set(y))
+    )
+    # plt.savefig(filename)
+    plt.show()

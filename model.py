@@ -11,7 +11,7 @@ import numpy as np
 
 class Variational_Autoencoder(object):
 
-    def __init__(self, sess, outdir, beta, latent_dim, batch_size, image_size, encoder, decoder, learning_rate=4e-4):
+    def __init__(self, sess, outdir, beta, latent_dim, batch_size, image_size, encoder, decoder, learning_rate=1e-3):
 
         self._sess = sess
         self._outdir = outdir
@@ -28,7 +28,7 @@ class Variational_Autoencoder(object):
     def _build_graph(self):
         with tf.variable_scope('input'):
             if len(self._image_size) == 1:
-                self.input = tf.placeholder(tf.float32, shape = [None, 784])
+                self.input = tf.placeholder(tf.float32, shape = [None, 729])
             if len(self._image_size) == 3:
                 self.input = tf.placeholder(tf.float32, shape = [None, self._image_size[0], self._image_size[1],
                                                                  self._image_size[2]])
@@ -64,9 +64,10 @@ class Variational_Autoencoder(object):
                 self._kl_loss *= self._beta
 
             self._loss = self._rec_loss + self._kl_loss
+        self._val_loss = self._loss
 
         with tf.variable_scope('optimizer'):
-            optimizer = tf.train.AdamOptimizer(learning_rate=self._learning_rate, beta1=0.5, beta2=0.9)
+            optimizer = tf.train.AdamOptimizer(learning_rate=self._learning_rate, beta1=0.9, beta2=0.999)
 
         with tf.variable_scope('training-step'):
             self._train = optimizer.minimize(self._loss)
@@ -100,7 +101,7 @@ class Variational_Autoencoder(object):
         self.saver.restore(self._sess, path)
 
     def validation(self, X):
-        val_loss = self._sess.run(self._loss, feed_dict = {self.input : X})
+        val_loss = self._sess.run(self._val_loss, feed_dict = {self.input : X})
         return val_loss
 
     def reconstruction_image(self, X):
