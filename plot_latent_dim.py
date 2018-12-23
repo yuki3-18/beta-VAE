@@ -9,7 +9,8 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder
+from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder, deepest_encoder, deepest_decoder, encoder_r, decoder_r,\
+    shallow_encoder, shallow_decoder, deep_encoder, deep_decoder, deeper_encoder, deeper_decoder
 from model import Variational_Autoencoder
 import utils
 import matplotlib.pyplot as plt
@@ -20,19 +21,20 @@ def main():
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_string("test_data_txt", "./input/shift/axis1/test.txt", "i1")
-    flags.DEFINE_string("model", './output/shift/axis1/z3/model/model_{}'.format(22000), "i2")
-    flags.DEFINE_string("outdir", "./output/shift/axis1/z3/latent/", "i3")
+    flags.DEFINE_string("test_data_txt", "./input/CT/patch/test.txt", "i1")
+    flags.DEFINE_string("model", './output/CT/patch/deep/z20/model/model_{}'.format(4000), "i2")
+    flags.DEFINE_string("outdir", "./output/CT/patch/deep/z20/latent/", "i3")
     flags.DEFINE_float("beta", 1, "hyperparameter beta")
-    flags.DEFINE_integer("num_of_test", 3000, "number of test data")
+    flags.DEFINE_integer("num_of_test", 607, "number of test data")
     flags.DEFINE_integer("batch_size", 1, "batch size")
-    flags.DEFINE_integer("latent_dim", 3, "latent dim")
+    flags.DEFINE_integer("latent_dim", 20, "latent dim")
     flags.DEFINE_list("image_size", [9 * 9 * 9], "image size")
     FLAGS = flags.FLAGS
 
     # check folder
     if not (os.path.exists(FLAGS.outdir)):
         os.makedirs(FLAGS.outdir)
+
 
     # read list
     test_data_list = io.load_list(FLAGS.test_data_txt)
@@ -65,12 +67,15 @@ def main():
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': encoder,
-            'decoder': decoder
+            'encoder': deep_encoder,
+            'decoder': deep_decoder
         }
         VAE = Variational_Autoencoder(**kwargs)
 
         sess.run(init_op)
+
+        patch_side = 9
+        patch_center = int(patch_side / 2)
 
         # testing
         VAE.restore_model(FLAGS.model)
@@ -87,15 +92,11 @@ def main():
 
         latent_space = np.asarray(latent_space)
         print("latent_space =",latent_space.shape)
-        print(latent_space[0])
-        print(latent_space[1])
-        print(latent_space[2])
-        print(latent_space[3])
-        print(latent_space[4])
-        # print(latent_space[10])
-        # print(latent_space[1000])
-        # print(latent_space[69])
-        # print(latent_space[2999])
+        # print(latent_space[0])
+        # print(latent_space[1])
+        # print(latent_space[2])
+        # print(latent_space[3])
+        # print(latent_space[4])
 
         plt.figure(figsize=(8, 6))
         fig = plt.scatter(latent_space[:, 0], latent_space[:, 1])
@@ -104,14 +105,17 @@ def main():
         plt.title('latent distribution')
         plt.savefig(FLAGS.outdir + "latent_space.png")
 
+        if FLAGS.latent_dim == 3 :
+            if not (os.path.exists(FLAGS.outdir + "3D/")):
+                os.makedirs(FLAGS.outdir + "3D/")
+            utils.matplotlib_plt(latent_space, FLAGS.outdir)
+            # check folder
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
-        utils.matplotlib_plt(latent_space)
-        ax.scatter(latent_space[:, 0], latent_space[:, 1], latent_space[:, 2], marker="x")
-        # ax.scatter(latent_space[:5, 0], latent_space[:5, 1], latent_space[:5, 2], marker="o", color='orange')
-        plt.title('latent distribution')
-        # plt.show()
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111, projection="3d")
+            # ax.scatter(latent_space[:, 0], latent_space[:, 1], latent_space[:, 2], marker="x")
+            # ax.scatter(latent_space[:5, 0], latent_space[:5, 1], latent_space[:5, 2], marker="o", color='orange')
+
 
         plt.figure(figsize=(8, 6))
         plt.scatter(latent_space[:, 0], latent_space[:, 1])
@@ -120,11 +124,11 @@ def main():
         plt.xlabel('dim_1')
         plt.ylabel('dim_2')
         plt.savefig(FLAGS.outdir + "back_projection.png")
-        plt.show()
+        # plt.show()
 
         #### display a 2D manifold of digits
         n = 13
-        digit_size = 9
+        digit_size = patch_side
         figure1 = np.zeros((digit_size * n, digit_size * n))
         figure2 = np.zeros((digit_size * n, digit_size * n))
         figure3 = np.zeros((digit_size * n, digit_size * n))
@@ -135,17 +139,27 @@ def main():
 
         for i, yi in enumerate(grid_y):
             for j, xi in enumerate(grid_x):
-                # z_sample = np.array([[xi, yi]])
-                z_sample = np.array([[xi, yi, 0]])
-                # z_sample = np.array([[xi, yi, 0, 0]])
+                z_sample = []
+
+                if FLAGS.latent_dim == 2:
+                    z_sample = np.array([[xi, yi]])
+                if FLAGS.latent_dim == 3:
+                    z_sample = np.array([[xi, yi, 0]])
+                if FLAGS.latent_dim == 4:
+                    z_sample = np.array([[xi, yi, 0, 0]])
+                if FLAGS.latent_dim == 7:
+                    z_sample = np.array([[xi, yi, 0, 0,0,0,0]])
+                if FLAGS.latent_dim == 20:
+                    z_sample = np.array([[xi, yi,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
+
                 x_decoded = VAE.generate_sample(z_sample)
                 generate_data = x_decoded[0].reshape(digit_size, digit_size, digit_size)
-                digit_axial = generate_data[4, :, :]
-                digit_coronal = generate_data[:, 4, :]
-                digit_sagital = generate_data[:, :, 4]
-                digit1 = np.reshape(digit_axial, [9, 9])
-                digit2 = np.reshape(digit_coronal, [9, 9])
-                digit3 = np.reshape(digit_sagital, [9, 9])
+                digit_axial = generate_data[patch_center, :, :]
+                digit_coronal = generate_data[:, patch_center, :]
+                digit_sagital = generate_data[:, :, patch_center]
+                digit1 = np.reshape(digit_axial, [patch_side, patch_side])
+                digit2 = np.reshape(digit_coronal, [patch_side, patch_side])
+                digit3 = np.reshape(digit_sagital, [patch_side, patch_side])
                 # plt.imshow(digit, cmap='Greys_r')
                 # plt.savefig(str(i) + '@' + str(j) + 'fig.png')
                 figure1[i * digit_size: (i + 1) * digit_size,
@@ -170,7 +184,7 @@ def main():
         plt.ylabel("z[1]")
         plt.imshow(figure1, cmap='Greys_r')
         plt.savefig(FLAGS.outdir + "digit_axial.png")
-        plt.show()
+        # plt.show()
 
         # coronal
         plt.figure(figsize=(10, 10))

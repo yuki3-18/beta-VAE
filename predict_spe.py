@@ -11,36 +11,24 @@ import SimpleITK as sitk
 from tqdm import tqdm
 import csv
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, encoder, decoder
+from network import cnn_encoder, cnn_decoder, encoder, decoder, deepest_encoder, deepest_decoder, encoder_r, decoder_r, \
+    shallow_encoder, shallow_decoder, encoder5, decoder5,deep_encoder, deep_decoder, deeper_encoder, deeper_decoder
 from model import Variational_Autoencoder
 import utils
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    #for windows
 
 def main():
-    # parser = argparse.ArgumentParser(description='py, test_data_txt, ground_truth_txt, outdir')
-    #
-    # parser.add_argument('--ground_truth_txt', '-i1', default='')
-    #
-    # parser.add_argument('--model', '-i2', default='./model_{}'.format(50000))
-    #
-    # parser.add_argument('--outdir', '-i3', default='')
-    #
-    # args = parser.parse_args()
-    #
-    # # check folder
-    # if not (os.path.exists(args.outdir)):
-    #     os.makedirs(args.outdir)
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_string("ground_truth_txt","./input/shift/axis1/noise/test.txt","i1")
-    flags.DEFINE_string("model", './output/shift/axis1/noise/z3/model/model_{}'.format(22000), "i2")
-    flags.DEFINE_string('outdir', "./output/shift/axis1/noise/z3/spe/", 'i3')
+    flags.DEFINE_string("ground_truth_txt", "./input/CT/patch/test.txt","i1")
+    flags.DEFINE_string("model", './output/CT/patch/deep/z20/model/model_{}'.format(4000), "i2")
+    flags.DEFINE_string('outdir', "./output/CT/patch/deep/z20/spe/", 'i3')
     flags.DEFINE_float("beta", 1, "hyperparameter beta")
     flags.DEFINE_integer("num_of_generate", 100, "number of generate data")
     flags.DEFINE_integer("batch_size", 1, "batch size")
-    flags.DEFINE_integer("latent_dim", 3, "latent dim")
+    flags.DEFINE_integer("latent_dim", 20, "latent dim")
     flags.DEFINE_list("image_size", [9 * 9 * 9], "image size")
     FLAGS = flags.FLAGS
 
@@ -72,6 +60,8 @@ def main():
     init_op = tf.group(tf.initializers.global_variables(),
                        tf.initializers.local_variables())
 
+
+
     with tf.Session(config = utils.config) as sess:
 
         # set network
@@ -82,8 +72,8 @@ def main():
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': encoder,
-            'decoder': decoder
+            'encoder': deep_encoder,
+            'decoder': deep_decoder
         }
         VAE = Variational_Autoencoder(**kwargs)
 
@@ -110,20 +100,21 @@ def main():
             generate_data_single = generate_data_single[0, :]
             generate_data.append(generate_data_single)
 
+        patch_side = 9
         generate_data = np.array(generate_data)
         ori = np.array(ori)
-        generate_data = np.reshape(generate_data, [FLAGS.num_of_generate, 9, 9, 9])
-        ori = np.reshape(ori, [FLAGS.num_of_generate, 9 * 9 * 9])
+        generate_data = np.reshape(generate_data, [FLAGS.num_of_generate, patch_side, patch_side, patch_side])
+        ori = np.reshape(ori, [FLAGS.num_of_generate, patch_side * patch_side * patch_side])
         # preds = preds.tolist()
         # ori = ori.tolist()
         n_generate_data = generate_data
         n_ori = ori
-        generate_data = generate_data * (test_max - test_min) + test_min
-        ori = ori * (test_max - test_min) + test_min
+        # generate_data = generate_data * (test_max - test_min) + test_min
+        # ori = ori * (test_max - test_min) + test_min
 
         for j in range(len(generate_data)):
             # EUDT
-            generate_data = np.reshape(generate_data, [FLAGS.num_of_generate, 9, 9, 9])
+            generate_data = np.reshape(generate_data, [FLAGS.num_of_generate, patch_side, patch_side, patch_side])
             eudt_image = sitk.GetImageFromArray(generate_data[j])
             eudt_image.SetSpacing([0.885, 0.885, 1])
             eudt_image.SetOrigin([0, 0, 0])
@@ -145,7 +136,7 @@ def main():
 
             print(j)
 
-            generate_data = np.reshape(generate_data, [FLAGS.num_of_generate, 9 * 9 * 9])
+            generate_data = np.reshape(generate_data, [FLAGS.num_of_generate, patch_side * patch_side * patch_side])
             # generate_data = generate_data.tolist()
             # ori = ori.tolist()
             # calculate ji
@@ -166,13 +157,13 @@ def main():
         # specificity = np.min(abs(ori - generate_data), axis=0)
         print('specificity = %f' % np.mean(specificity))
 
-    specificity = specificity.tolist()
+    # specificity = specificity.tolist()
     # print(specificity)
     # output csv file
     with open(os.path.join(FLAGS.outdir, 'specificity.csv'), 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerows(specificity)
-        writer.writerow(['specificity:', np.mean(specificity)])
+        # writer.writerows(specificity)
+        writer.writerow(['specificity:', specificity])
 
 
 # # load tfrecord function

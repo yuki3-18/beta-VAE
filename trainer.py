@@ -9,7 +9,8 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, mnist_encoder, mnist_decoder, encoder, decoder, deep_encoder, deep_decoder
+from network import cnn_encoder, cnn_decoder, encoder5, decoder5, encoder, decoder, encoder_r, decoder_r, encoder1, decoder1,\
+    deepest_encoder, deepest_decoder, shallow_encoder, shallow_decoder,deeper_encoder, deeper_decoder, deep_encoder, deep_decoder
 from model import Variational_Autoencoder
 import utils
 
@@ -18,41 +19,20 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'          #for windows
 # os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def main():
-    # parser = argparse.ArgumentParser(description='py, train_data_txt, val_data_txt, outdir')
-    #
-    # parser.add_argument('--train_data_txt', '-i1', default='', help='train data txt')
-    #
-    # parser.add_argument('--val_data_txt', '-i2', default='', help='validation data txt')
-    #
-    # parser.add_argument('--outdir', '-i3', default='./beta_0.1', help='outdir')
-    #
-    # args = parser.parse_args()
-
-    # check folder
-    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'train'))):
-    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'train'))
-    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'val'))):
-    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'val'))
-    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'rec'))):
-    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'rec'))
-    # if not (os.path.exists(os.path.join(args.outdir, 'tensorboard', 'kl'))):
-    #     os.makedirs(os.path.join(args.outdir, 'tensorboard', 'kl'))
-    # if not (os.path.exists(os.path.join(args.outdir, 'model'))):
-    #     os.makedirs(os.path.join(args.outdir, 'model'))
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_string("train_data_txt", "./input/shift/axis1/noise/train.txt", "train data txt")
-    flags.DEFINE_string("val_data_txt", "./input/shift/axis1/noise/val.txt", "validation data txt")
-    flags.DEFINE_string("outdir", "./output/shift/axis1/noise/z3", "outdir")
+    flags.DEFINE_string("train_data_txt", "./input/CT/patch/train.txt", "train data txt")
+    flags.DEFINE_string("val_data_txt", "./input/CT/patch/val.txt", "validation data txt")
+    flags.DEFINE_string("outdir", "./output/CT/patch/model1/z20", "outdir")
     flags.DEFINE_float("beta", 1, "hyperparameter beta")
     flags.DEFINE_integer("num_of_val", 3000, "number of validation data")
     flags.DEFINE_integer("batch_size", 30, "batch size")
-    flags.DEFINE_integer("num_iteration", 50001, "number of iteration")
+    flags.DEFINE_integer("num_iteration", 100001, "number of iteration")
     flags.DEFINE_integer("save_loss_step", 50, "step of save loss")
     flags.DEFINE_integer("save_model_step", 500, "step of save model and validation")
     flags.DEFINE_integer("shuffle_buffer_size", 1000, "buffer size of shuffle")
-    flags.DEFINE_integer("latent_dim", 3, "latent dim")
+    flags.DEFINE_integer("latent_dim", 20, "latent dim")
     flags.DEFINE_list("image_size", [9*9*9], "image size")
     FLAGS = flags.FLAGS
     
@@ -117,8 +97,8 @@ def main():
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': encoder,
-            'decoder': decoder
+            'encoder': encoder1,
+            'decoder': decoder1
         }
         VAE = Variational_Autoencoder(**kwargs)
 
@@ -137,6 +117,12 @@ def main():
 
         # initialize
         sess.run(init_op)
+
+        # ckpt_state = tf.train.get_checkpoint_state("dir/")
+        #
+        # if ckpt_state:
+        #     restore_model = ckpt_state.model_checkpoint_path
+        #     saver.restore(sess, restore_model)
 
         # training
         tbar = tqdm(range(FLAGS.num_iteration), ascii=True)

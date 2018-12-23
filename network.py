@@ -63,6 +63,7 @@ def mnist_decoder(input, batch_size, shape_size):
 
     return output
 
+
 def encoder(input, latent_dim):
     encoder = tf.layers.dense(input, 500, activation = tf.nn.relu, name='encoder-01')
     shape_size = tuple(encoder.get_shape().as_list())
@@ -76,9 +77,10 @@ def decoder(input, batch_size, shape_size):
 
     return output
 
+
 def deep_encoder(input, latent_dim):
-    encoder = tf.layers.dense(input, 200, activation = tf.nn.relu, name='encoder-01')
-    # encoder = tf.layers.dense(encoder, 200, activation=tf.nn.relu, name='encoder-02')
+    encoder = tf.layers.dense(input, 500, activation = tf.nn.relu, name='encoder-01')
+    encoder = tf.layers.dense(encoder, 200, activation=tf.nn.relu, name='encoder-02')
     shape_size = tuple(encoder.get_shape().as_list())
     output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
 
@@ -86,7 +88,108 @@ def deep_encoder(input, latent_dim):
 
 def deep_decoder(input, batch_size, shape_size):
     decoder = tf.layers.dense(input, 200, activation = tf.nn.relu, name='decoder-01')
-    # decoder = tf.layers.dense(decoder, 200, activation=tf.nn.relu, name='decoder-02')
-    output = tf.layers.dense(decoder, 9*9*9, activation = tf.nn.sigmoid)
+    decoder = tf.layers.dense(decoder, 500, activation=tf.nn.relu, name='decoder-02')
+    output = tf.layers.dense(decoder, 9 * 9 * 9, activation = tf.nn.sigmoid)
+
+    return output
+
+
+def deeper_encoder(input, latent_dim):
+    encoder = tf.layers.dense(input, 500, activation = tf.nn.relu, name='encoder-01')
+    encoder = tf.layers.dense(encoder, 250, activation=tf.nn.relu, name='encoder-02')
+    encoder = tf.layers.dense(encoder, 100, activation=tf.nn.relu, name='encoder-03')
+    shape_size = tuple(encoder.get_shape().as_list())
+    output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
+
+    return output, shape_size
+
+def deeper_decoder(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 100, activation = tf.nn.relu, name='decoder-01')
+    decoder = tf.layers.dense(decoder, 250, activation=tf.nn.relu, name='decoder-02')
+    decoder = tf.layers.dense(decoder, 500, activation=tf.nn.relu, name='decoder-03')
+    output = tf.layers.dense(decoder, 9 * 9 * 9, activation = tf.nn.sigmoid)
+
+    return output
+
+
+def deepest_encoder(input, latent_dim):
+    encoder = tf.layers.dense(input, 500, activation = tf.nn.relu, name='encoder-01')
+    encoder = tf.layers.dense(encoder, 250, activation=tf.nn.relu, name='encoder-02')
+    encoder = tf.layers.dense(encoder, 100, activation=tf.nn.relu, name='encoder-03')
+    encoder = tf.layers.dense(encoder, 50, activation=tf.nn.relu, name='encoder-04')
+    shape_size = tuple(encoder.get_shape().as_list())
+    output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
+
+    return output, shape_size
+
+def deepest_decoder(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 50, activation = tf.nn.relu, name='decoder-01')
+    decoder = tf.layers.dense(decoder, 100, activation=tf.nn.relu, name='decoder-02')
+    decoder = tf.layers.dense(decoder, 250, activation=tf.nn.relu, name='decoder-03')
+    decoder = tf.layers.dense(decoder, 500, activation=tf.nn.relu, name='decoder-04')
+    output = tf.layers.dense(decoder, 9 * 9 * 9, activation = tf.nn.sigmoid)
+
+    return output
+
+def encoder_r(input, latent_dim):
+    encoder = tf.layers.dense(input, 243, activation = tf.nn.relu, name='encoder-01')
+    encoder = tf.layers.dense(encoder, 100, activation=tf.nn.relu, name='encoder-02')
+    shape_size = tuple(encoder.get_shape().as_list())
+    output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
+
+    return output, shape_size
+
+def decoder_r(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 100, activation = tf.nn.relu, name='decoder-01')
+    decoder = tf.layers.dense(decoder, 243, activation=tf.nn.relu, name='decoder-02')
+    output = tf.layers.dense(decoder, 9 * 9 * 9, activation = tf.nn.sigmoid)
+
+    return output
+
+def encoder1(input, latent_dim):
+    encoder = tf.layers.dense(input, 500, activation = tf.nn.relu, name='encoder-01')
+    encoder = tf.layers.dense(encoder, 250, activation=tf.nn.relu, name='encoder-02')
+    shape_size = tuple(encoder.get_shape().as_list())
+    output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
+
+    return output, shape_size
+
+def decoder1(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 250, activation = tf.nn.relu, name='decoder-01')
+    decoder = tf.layers.dense(decoder, 500, activation=tf.nn.relu, name='decoder-02')
+    output = tf.layers.dense(decoder, 9 * 9 * 9, activation = tf.nn.sigmoid)
+
+    return output
+
+
+# for patch5
+def shallow_encoder(input, latent_dim):
+    encoder = tf.layers.dense(input, 50, activation = tf.nn.relu, name='encoder-01')
+    shape_size = tuple(encoder.get_shape().as_list())
+    output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
+
+    return output, shape_size
+
+def shallow_decoder(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 50, activation = tf.nn.relu, name='decoder-01')
+    output = tf.layers.dense(decoder, 5*5*5, activation = tf.nn.sigmoid)
+
+    return output
+
+
+def encoder5(input, latent_dim):
+    encoder = tf.layers.dense(input, 100, activation = tf.nn.relu, name='encoder-01')
+    encoder = tf.layers.dense(encoder, 50, activation=tf.nn.relu, name='encoder-02')
+    encoder = tf.layers.dense(encoder, 20, activation=tf.nn.relu, name='encoder-03')
+    shape_size = tuple(encoder.get_shape().as_list())
+    output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
+
+    return output, shape_size
+
+def decoder5(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 100, activation = tf.nn.relu, name='decoder-01')
+    decoder = tf.layers.dense(decoder, 50, activation=tf.nn.relu, name='decoder-02')
+    decoder = tf.layers.dense(decoder, 20, activation=tf.nn.relu, name='decoder-03')
+    output = tf.layers.dense(decoder, 5*5*5, activation = tf.nn.sigmoid)
 
     return output

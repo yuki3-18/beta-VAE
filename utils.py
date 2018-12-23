@@ -47,12 +47,19 @@ def L1norm(im1, im2):
 
     return np.double(np.mean(abs(im1 - im2)))
 
-def matplotlib_plt(X):
+def matplotlib_plt(X, filename):
     fig = plt.figure()
+    plt.title('latent distribution')
     ax = fig.add_subplot(111, projection="3d")
-
+    ax.set_xlabel('dim_1')
+    ax.set_ylabel('dim_2')
+    ax.set_zlabel('dim_3')
     ax.scatter(X[:,0], X[:,1], X[:,2] , marker="x"
                # , c=y/len(set(y))
     )
+    for angle in range(0, 360):
+        ax.view_init(30, angle)
+        plt.draw()
+        plt.savefig(filename + "3D/{:03d}.jpg".format(angle))
     # plt.savefig(filename)
-    plt.show()
+    # plt.show()

@@ -28,7 +28,7 @@ class Variational_Autoencoder(object):
     def _build_graph(self):
         with tf.variable_scope('input'):
             if len(self._image_size) == 1:
-                self.input = tf.placeholder(tf.float32, shape = [None, 729])
+                self.input = tf.placeholder(tf.float32, shape = [None, 9*9*9])
             if len(self._image_size) == 3:
                 self.input = tf.placeholder(tf.float32, shape = [None, self._image_size[0], self._image_size[1],
                                                                  self._image_size[2]])

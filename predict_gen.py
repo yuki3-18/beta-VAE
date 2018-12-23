@@ -12,7 +12,8 @@ import SimpleITK as sitk
 from tqdm import tqdm
 import csv
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder, deep_encoder, deep_decoder
+from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder, encoder_r, decoder_r, \
+    deepest_encoder, deepest_decoder, shallow_encoder, shallow_decoder, encoder5, decoder5,deeper_encoder, deeper_decoder, deep_encoder, deep_decoder
 from model import Variational_Autoencoder
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -21,29 +22,16 @@ import utils
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'    #for windows
 
 def main():
-#     parser = argparse.ArgumentParser(description='py, test_data_txt, model, outdir')
-#
-#     parser.add_argument('--test_data_txt', '-i1', default='')
-#
-#     parser.add_argument('--model', '-i2', default='./model_{}'.format(50000))
-#
-#     parser.add_argument('--outdir', '-i3', default='')
-#
-#     args = parser.parse_args()
-
-    # # check folder
-    # if not (os.path.exists(args.outdir)):
-    #     os.makedirs(args.outdir)
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_string("test_data_txt", "./input/shift/axis1/noise/test.txt", "i1")
-    flags.DEFINE_string("model", './output/shift/axis1/noise/z3/model/model_{}'.format(22000), "i2")
-    flags.DEFINE_string("outdir", "./output/shift/axis1/noise/z3/gen/", "i3")
+    flags.DEFINE_string("test_data_txt", "./input/CT/patch/test.txt", "i1")
+    flags.DEFINE_string("model", './output/CT/patch/deep/z20/model/model_{}'.format(4000), "i2")
+    flags.DEFINE_string("outdir", "./output/CT/patch/deep/z20/gen/", "i3")
     flags.DEFINE_float("beta", 1, "hyperparameter beta")
-    flags.DEFINE_integer("num_of_test", 3000, "number of test data")
+    flags.DEFINE_integer("num_of_test", 607, "number of test data")
     flags.DEFINE_integer("batch_size", 1, "batch size")
-    flags.DEFINE_integer("latent_dim", 3, "latent dim")
+    flags.DEFINE_integer("latent_dim", 20, "latent dim")
     flags.DEFINE_list("image_size", [9*9*9], "image size")
     FLAGS = flags.FLAGS
 
@@ -81,8 +69,8 @@ def main():
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': encoder,
-            'decoder': decoder
+            'encoder': deep_encoder,
+            'decoder': deep_decoder
         }
         VAE = Variational_Autoencoder(**kwargs)
 
@@ -107,10 +95,11 @@ def main():
             preds.append(preds_single)
             ori.append(ori_single)
 
+        patch_side = 9
         # preds = np.array(preds)
         # ori = np.array(ori)
-        preds = np.reshape(preds, [FLAGS.num_of_test, 9 , 9 , 9])
-        ori = np.reshape(ori, [FLAGS.num_of_test, 9 , 9 , 9])
+        preds = np.reshape(preds, [FLAGS.num_of_test, patch_side , patch_side , patch_side])
+        ori = np.reshape(ori, [FLAGS.num_of_test, patch_side, patch_side, patch_side])
         # preds = preds.tolist()
         # ori = ori.tolist()
         n_preds = preds
@@ -121,30 +110,18 @@ def main():
 
         # label
         generalization_single = []
-        # generalization_single = np.zeros([FLAGS.num_of_test, 9 * 9 * 9])
+        # generalization_single = np.zeros([FLAGS.num_of_test, patch_side * patch_side * patch_side])
         for j in range(len(preds)):
 
             # EUDT
             eudt_image = sitk.GetImageFromArray(preds[j])
             # eudt_image.SetSpacing([1, 1])
             eudt_image.SetOrigin([0, 0, 0])
-            # eudt_image.SetSize(0, 9)
-            # eudt_image.SetSize(1, 9)
-            # eudt_image.SetSize(2, 9)
+            # eudt_image.SetSize(0, patch_side)
+            # eudt_image.SetSize(1, patch_side)
+            # eudt_image.SetSize(2, patch_side)
             eudt_image.SetSpacing([0.885,0.885,1])
 
-            # label = np.where(preds[j] > 0, 0, 1)
-            # label_image = sitk.GetImageFromArray(label)
-            # label_image.SetSpacing([1, 1])
-            # label_image.SetOrigin([0, 0])
-
-            # ori_label = np.where(ori[j] > 0, 0, 1)
-            # ori_label_image = sitk.GetImageFromArray(ori_label)
-            # ori_label_image.SetSpacing([1, 1])
-            # ori_label_image.SetOrigin([0, 0])
-
-            # # calculate ji
-            # ji.append(utils.jaccard(label, ori_label))
 
             # output image
 
@@ -179,12 +156,12 @@ def main():
     print(Xe.shape)
 
     for i in range(10):
-        axes[0, i].imshow(X[i, :].reshape(9, 9),cmap=cm.Greys_r)
+        axes[0, i].imshow(X[i, :].reshape(patch_side, patch_side),cmap=cm.Greys_r)
         axes[0, i].set_title('original %d' % i)
         axes[0, i].get_xaxis().set_visible(False)
         axes[0, i].get_yaxis().set_visible(False)
 
-        axes[1, i].imshow(Xe[i, :].reshape(9, 9),cmap=cm.Greys_r)
+        axes[1, i].imshow(Xe[i, :].reshape(patch_side, patch_side),cmap=cm.Greys_r)
         axes[1, i].set_title('reconstruction %d' % i)
         axes[1, i].get_xaxis().set_visible(False)
         axes[1, i].get_yaxis().set_visible(False)
@@ -192,7 +169,7 @@ def main():
     # plt.show()
 
 # # load tfrecord function
-def _parse_function(record, image_size=[9 * 9 * 9]):
+def _parse_function(record, image_size=[5 * 5 * 5]):
     keys_to_features = {
         'img_raw': tf.FixedLenFeature(np.prod(image_size), tf.float32),
     }
