@@ -12,7 +12,7 @@ import SimpleITK as sitk
 from tqdm import tqdm
 import csv
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder, encoder_r, decoder_r, \
+from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder, encoder_r, decoder_r, encoder1, decoder1,encoder2, decoder2,\
     deepest_encoder, deepest_decoder, shallow_encoder, shallow_decoder, encoder5, decoder5,deeper_encoder, deeper_decoder, deep_encoder, deep_decoder
 from model import Variational_Autoencoder
 import matplotlib.pyplot as plt
@@ -25,22 +25,30 @@ def main():
 
     # tf flag
     flags = tf.flags
-    flags.DEFINE_string("test_data_txt", "./input/CT/patch/test.txt", "i1")
-    flags.DEFINE_string("model", './output/CT/patch/deep/z20/model/model_{}'.format(4000), "i2")
-    flags.DEFINE_string("outdir", "./output/CT/patch/deep/z20/gen/", "i3")
-    flags.DEFINE_float("beta", 1, "hyperparameter beta")
+    # flags.DEFINE_string("test_data_txt", "./input/CT/patch/test.txt", "i1")
+    flags.DEFINE_string("test_data_txt", "./input/axis2/noise/test.txt", "i1")
+    # flags.DEFINE_string("model", './output/CT/patch/model2/z24/alpha_1e-5/beta_1/fine/model/model_{}'.format(617000), "i2")
+    # flags.DEFINE_string("outdir", "./output/CT/patch/model2/z24/alpha_1e-5/beta_1/fine/gen/", "i3")
+    flags.DEFINE_string("model", './output/axis2/noise/model2/z24/alpha_1e-5/beta_0.01/model/model_{}'.format(9998000), "i2")
+    flags.DEFINE_string("outdir", "./output/axis2/noise/model2/z24/alpha_1e-5/beta_0.01/gen/", "i3")
+    flags.DEFINE_float("beta", 0.01, "hyperparameter beta")
     flags.DEFINE_integer("num_of_test", 607, "number of test data")
+    # flags.DEFINE_integer("num_of_test", 3000, "number of test data")
     flags.DEFINE_integer("batch_size", 1, "batch size")
-    flags.DEFINE_integer("latent_dim", 20, "latent dim")
+    flags.DEFINE_integer("latent_dim", 24, "latent dim")
     flags.DEFINE_list("image_size", [9*9*9], "image size")
     FLAGS = flags.FLAGS
 
     # check folder
     if not (os.path.exists(FLAGS.outdir)):
-        os.makedirs(FLAGS.outdir)
+        os.makedirs(FLAGS.outdir + 'EUDT/')
+        os.makedirs(FLAGS.outdir + 'ori/')
+        os.makedirs(FLAGS.outdir + 'res/')
+
 
     # read list
     test_data_list = io.load_list(FLAGS.test_data_txt)
+
 
     # test step
     test_step = FLAGS.num_of_test // FLAGS.batch_size
@@ -69,8 +77,8 @@ def main():
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': deep_encoder,
-            'decoder': deep_decoder
+            'encoder': encoder2,
+            'decoder': decoder2
         }
         VAE = Variational_Autoencoder(**kwargs)
 
@@ -100,54 +108,67 @@ def main():
         # ori = np.array(ori)
         preds = np.reshape(preds, [FLAGS.num_of_test, patch_side , patch_side , patch_side])
         ori = np.reshape(ori, [FLAGS.num_of_test, patch_side, patch_side, patch_side])
+        residual = ori - preds
+
         # preds = preds.tolist()
         # ori = ori.tolist()
-        n_preds = preds
-        n_ori = ori
+        # n_preds = preds
+        # n_ori = ori
 
-        preds = preds * (test_max - test_min) + test_min
-        ori = ori * (test_max - test_min) + test_min
+        # preds = preds * (test_max - test_min) + test_min
+        # ori = ori * (test_max - test_min) + test_min
 
         # label
         generalization_single = []
         # generalization_single = np.zeros([FLAGS.num_of_test, patch_side * patch_side * patch_side])
+        file_rec = open(FLAGS.outdir + 'EUDT/list.txt', 'w')
+        file_ori = open(FLAGS.outdir + 'ori/list.txt', 'w')
+        file_res = open(FLAGS.outdir + 'res/list.txt', 'w')
         for j in range(len(preds)):
 
             # EUDT
-            eudt_image = sitk.GetImageFromArray(preds[j])
-            # eudt_image.SetSpacing([1, 1])
-            eudt_image.SetOrigin([0, 0, 0])
-            # eudt_image.SetSize(0, patch_side)
-            # eudt_image.SetSize(1, patch_side)
-            # eudt_image.SetSize(2, patch_side)
-            eudt_image.SetSpacing([0.885,0.885,1])
+            rec_image = sitk.GetImageFromArray(preds[j])
+            rec_image.SetOrigin([0, 0, 0])
+            rec_image.SetSpacing([0.885,0.885,1])
 
+            ori_image = sitk.GetImageFromArray(ori[j])
+            ori_image.SetOrigin([0, 0, 0])
+            ori_image.SetSpacing([0.885,0.885,1])
+
+            res_image = sitk.GetImageFromArray(residual[j])
+            res_image.SetOrigin([0, 0, 0])
+            res_image.SetSpacing([0.885,0.885,1])
 
             # output image
 
-            io.write_mhd_and_raw(eudt_image, '{}.mhd'.format(os.path.join(FLAGS.outdir, 'EUDT', 'recon_{}'.format(j))))
-            # io.write_mhd_and_raw(preds[j], '{}.raw'.format(os.path.join(FLAGS.outdir, 'recon_{}'.format(j))))
-            # io.write_mhd_and_raw(label_image, '{}.mhd'.format(os.path.join(FLAGS.outdir, 'label', 'recon_{}'.format(j))))
+            io.write_mhd_and_raw(rec_image, '{}.mhd'.format(os.path.join(FLAGS.outdir, 'EUDT', 'recon_{}'.format(j + 1))))
+            io.write_mhd_and_raw(ori_image, '{}.mhd'.format(os.path.join(FLAGS.outdir, 'ori','ori_{}'.format(j + 1))))
+            io.write_mhd_and_raw(res_image, '{}.mhd'.format(os.path.join(FLAGS.outdir, 'res', 'res_{}'.format(j + 1))))
+            file_rec.write('{}.mhd'.format(os.path.join(FLAGS.outdir, 'EUDT', 'res_{}'.format(j + 1))) + "\n")
+            file_ori.write('{}.mhd'.format(os.path.join(FLAGS.outdir, 'ori', 'res_{}'.format(j + 1))) + "\n")
+            file_res.write('{}.mhd'.format(os.path.join(FLAGS.outdir, 'res', 'res_{}'.format(j + 1))) + "\n")
 
-            # print(preds.shape)
-            # print(ori.shape)
-            # generalization_single.append(utils.L1norm(ori[j], preds[j]))
+            generalization_single.append(utils.L1norm(ori[j], preds[j]))
 
             # np.append(generalization_single, ori - preds)
+        file_rec.close()
+        file_ori.close()
+        file_res.close()
 
         # print(generalization_single.shape)
-        generalization = np.average(np.average(abs(ori - preds), axis=0))
-        print('generalization = %f' % generalization)
+    generalization = np.average(generalization_single)
+    print('generalization = %f' % generalization)
 
-        n_generalization = np.average(np.average(abs(n_ori - n_preds), axis=0))
-        print('n_generalization = %f' % n_generalization)
-
+    # n_generalization = np.average(np.average(abs(n_ori - n_preds), axis=0))
+    # print('n_generalization = %f' % n_generalization)
+    # print(generalization_single)
+    np.savetxt(os.path.join(FLAGS.outdir, 'generalization.csv'), generalization_single, delimiter=",")
 
     # output csv file
-    with open(os.path.join(FLAGS.outdir, 'generalization.csv'), 'w', newline='') as file:
-        writer = csv.writer(file)
-        # writer.writerows(generalization_single)
-        writer.writerow(['generalization= ', generalization])
+    # with open(os.path.join(FLAGS.outdir, 'generalization.csv'), 'w', newline='') as file:
+    #     writer = csv.writer(file)
+    #     writer.writerows(generalization_single)
+    #     writer.writerow(['generalization= ', generalization])
 
     # plot reconstruction
     fig, axes = plt.subplots(ncols=10, nrows=2, figsize=(18, 4))
@@ -156,12 +177,16 @@ def main():
     print(Xe.shape)
 
     for i in range(10):
-        axes[0, i].imshow(X[i, :].reshape(patch_side, patch_side),cmap=cm.Greys_r)
+        minX = np.min(X[i, :])
+        maxX = np.max(X[i, :])
+        axes[0, i].imshow(X[i, :].reshape(patch_side, patch_side),cmap=cm.Greys_r, vmin=minX, vmax=maxX, interpolation='none')
         axes[0, i].set_title('original %d' % i)
         axes[0, i].get_xaxis().set_visible(False)
         axes[0, i].get_yaxis().set_visible(False)
 
-        axes[1, i].imshow(Xe[i, :].reshape(patch_side, patch_side),cmap=cm.Greys_r)
+        minXe = np.min(Xe[i, :])
+        maxXe = np.max(Xe[i, :])
+        axes[1, i].imshow(Xe[i, :].reshape(patch_side, patch_side),cmap=cm.Greys_r, vmin=minXe, vmax=maxXe, interpolation='none')
         axes[1, i].set_title('reconstruction %d' % i)
         axes[1, i].get_xaxis().set_visible(False)
         axes[1, i].get_yaxis().set_visible(False)
@@ -169,7 +194,7 @@ def main():
     # plt.show()
 
 # # load tfrecord function
-def _parse_function(record, image_size=[5 * 5 * 5]):
+def _parse_function(record, image_size=[9 * 9 * 9]):
     keys_to_features = {
         'img_raw': tf.FixedLenFeature(np.prod(image_size), tf.float32),
     }

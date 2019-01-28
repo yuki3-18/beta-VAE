@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import axes3d
 config = tf.ConfigProto(
     gpu_options=tf.GPUOptions(
         visible_device_list="0", # specify GPU number
-        allow_growth=False
+        allow_growth=True
     )
 )
 

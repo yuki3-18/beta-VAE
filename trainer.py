@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import dataIO as io
-from network import cnn_encoder, cnn_decoder, encoder5, decoder5, encoder, decoder, encoder_r, decoder_r, encoder1, decoder1,\
+from network import cnn_encoder, cnn_decoder, encoder5, decoder5, encoder, decoder, encoder_r, decoder_r, encoder1, decoder1, encoder2, decoder2,\
     deepest_encoder, deepest_decoder, shallow_encoder, shallow_decoder,deeper_encoder, deeper_decoder, deep_encoder, deep_decoder
 from model import Variational_Autoencoder
 import utils
@@ -24,16 +24,18 @@ def main():
     flags = tf.flags
     flags.DEFINE_string("train_data_txt", "./input/CT/patch/train.txt", "train data txt")
     flags.DEFINE_string("val_data_txt", "./input/CT/patch/val.txt", "validation data txt")
-    flags.DEFINE_string("outdir", "./output/CT/patch/model1/z20", "outdir")
-    flags.DEFINE_float("beta", 1, "hyperparameter beta")
-    flags.DEFINE_integer("num_of_val", 3000, "number of validation data")
+    flags.DEFINE_string("outdir", "./output/CT/patch/model2/z24/alpha_1e-5/beta_0.1/test/", "outdir")
+    flags.DEFINE_float("beta", 0.1, "hyperparameter beta")
+    flags.DEFINE_integer("num_of_val", 607, "number of validation data")
     flags.DEFINE_integer("batch_size", 30, "batch size")
-    flags.DEFINE_integer("num_iteration", 100001, "number of iteration")
-    flags.DEFINE_integer("save_loss_step", 50, "step of save loss")
+    flags.DEFINE_integer("num_iteration", 1000001, "number of iteration")
+    flags.DEFINE_integer("save_loss_step", 200, "step of save loss")
     flags.DEFINE_integer("save_model_step", 500, "step of save model and validation")
     flags.DEFINE_integer("shuffle_buffer_size", 1000, "buffer size of shuffle")
-    flags.DEFINE_integer("latent_dim", 20, "latent dim")
+    flags.DEFINE_integer("latent_dim", 24, "latent dim")
     flags.DEFINE_list("image_size", [9*9*9], "image size")
+    flags.DEFINE_string("model", '', "pre training model")
+    flags.DEFINE_integer("model_itr", 0, "model iteration")
     FLAGS = flags.FLAGS
     
     # check folder
@@ -87,8 +89,8 @@ def main():
     init_op = tf.group(tf.initializers.global_variables(),
                        tf.initializers.local_variables())
 
-    # with tf.Session(config = utils.config) as sess:
-    with tf.Session() as sess:
+    with tf.Session(config = utils.config) as sess:
+    # with tf.Session() as sess:
         # set network
         kwargs = {
             'sess': sess,
@@ -97,8 +99,8 @@ def main():
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': encoder1,
-            'decoder': decoder1
+            'encoder': encoder2,
+            'decoder': decoder2
         }
         VAE = Variational_Autoencoder(**kwargs)
 
@@ -118,11 +120,12 @@ def main():
         # initialize
         sess.run(init_op)
 
-        # ckpt_state = tf.train.get_checkpoint_state("dir/")
-        #
-        # if ckpt_state:
-        #     restore_model = ckpt_state.model_checkpoint_path
-        #     saver.restore(sess, restore_model)
+        # use pre trained model
+        ckpt_state = tf.train.get_checkpoint_state(FLAGS.model)
+
+        if ckpt_state:
+            restore_model = ckpt_state.model_checkpoint_path
+            VAE.restore_model(FLAGS.model+'model_{}'.format(FLAGS.model_itr))
 
         # training
         tbar = tqdm(range(FLAGS.num_iteration), ascii=True)

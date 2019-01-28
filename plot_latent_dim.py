@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 import dataIO as io
 from network import cnn_encoder, cnn_decoder, mnist_decoder, mnist_encoder, encoder, decoder, deepest_encoder, deepest_decoder, encoder_r, decoder_r,\
-    shallow_encoder, shallow_decoder, deep_encoder, deep_decoder, deeper_encoder, deeper_decoder
+    shallow_encoder, shallow_decoder, deep_encoder, deep_decoder, deeper_encoder, deeper_decoder, encoder1, decoder1, encoder2, decoder2
 from model import Variational_Autoencoder
 import utils
 import matplotlib.pyplot as plt
@@ -22,18 +22,22 @@ def main():
     # tf flag
     flags = tf.flags
     flags.DEFINE_string("test_data_txt", "./input/CT/patch/test.txt", "i1")
-    flags.DEFINE_string("model", './output/CT/patch/deep/z20/model/model_{}'.format(4000), "i2")
-    flags.DEFINE_string("outdir", "./output/CT/patch/deep/z20/latent/", "i3")
-    flags.DEFINE_float("beta", 1, "hyperparameter beta")
+    # flags.DEFINE_string("test_data_txt", "./input/axis2/noise/test.txt","i1")
+    flags.DEFINE_string("model", './output/CT/patch/model2/z24/alpha_1e-5/beta_0.1/fine/model/model_{}'.format(244000), "i2")
+    flags.DEFINE_string("outdir", "./output/CT/patch/model2/z24/alpha_1e-5/beta_0.1/fine/latent/", "i3")
+    # flags.DEFINE_string("model", './output/axis2/noise/model2/z24/alpha_1e-5/beta_0.1/model/model_{}'.format(9489000), "i2")
+    # flags.DEFINE_string("outdir", "./output/axis2/noise/model2/z24/alpha_1e-5/beta_0.1/latent/", "i3")
+    flags.DEFINE_float("beta", 0.1, "hyperparameter beta")
     flags.DEFINE_integer("num_of_test", 607, "number of test data")
+    # flags.DEFINE_integer("num_of_test", 3000, "number of test data")
     flags.DEFINE_integer("batch_size", 1, "batch size")
-    flags.DEFINE_integer("latent_dim", 20, "latent dim")
+    flags.DEFINE_integer("latent_dim", 24, "latent dim")
     flags.DEFINE_list("image_size", [9 * 9 * 9], "image size")
     FLAGS = flags.FLAGS
 
     # check folder
     if not (os.path.exists(FLAGS.outdir)):
-        os.makedirs(FLAGS.outdir)
+        os.makedirs(FLAGS.outdir + 'morphing/')
 
 
     # read list
@@ -67,8 +71,8 @@ def main():
             'latent_dim': FLAGS.latent_dim,
             'batch_size': FLAGS.batch_size,
             'image_size': FLAGS.image_size,
-            'encoder': deep_encoder,
-            'decoder': deep_decoder
+            'encoder': encoder2,
+            'decoder': decoder2
         }
         VAE = Variational_Autoencoder(**kwargs)
 
@@ -91,7 +95,7 @@ def main():
             latent_space.append(z)
 
         latent_space = np.asarray(latent_space)
-        print("latent_space =",latent_space.shape)
+        # print("latent_space =",latent_space.shape)
         # print(latent_space[0])
         # print(latent_space[1])
         # print(latent_space[2])
@@ -117,13 +121,13 @@ def main():
             # ax.scatter(latent_space[:5, 0], latent_space[:5, 1], latent_space[:5, 2], marker="o", color='orange')
 
 
-        plt.figure(figsize=(8, 6))
-        plt.scatter(latent_space[:, 0], latent_space[:, 1])
-        plt.scatter(latent_space[:5, 0],latent_space[:5, 1], color='orange')
-        plt.title('latent distribution')
-        plt.xlabel('dim_1')
-        plt.ylabel('dim_2')
-        plt.savefig(FLAGS.outdir + "back_projection.png")
+        # plt.figure(figsize=(8, 6))
+        # plt.scatter(latent_space[:, 0], latent_space[:, 1])
+        # plt.scatter(latent_space[:5, 0],latent_space[:5, 1], color='orange')
+        # plt.title('latent distribution')
+        # plt.xlabel('dim_1')
+        # plt.ylabel('dim_2')
+        # plt.savefig(FLAGS.outdir + "back_projection.png")
         # plt.show()
 
         #### display a 2D manifold of digits
@@ -137,6 +141,8 @@ def main():
         grid_x = np.linspace(-3, 3, n)
         grid_y = np.linspace(-3, 3, n)[::-1]
 
+        plt.figure()
+
         for i, yi in enumerate(grid_y):
             for j, xi in enumerate(grid_x):
                 z_sample = []
@@ -147,10 +153,14 @@ def main():
                     z_sample = np.array([[xi, yi, 0]])
                 if FLAGS.latent_dim == 4:
                     z_sample = np.array([[xi, yi, 0, 0]])
-                if FLAGS.latent_dim == 7:
-                    z_sample = np.array([[xi, yi, 0, 0,0,0,0]])
-                if FLAGS.latent_dim == 20:
-                    z_sample = np.array([[xi, yi,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
+                if FLAGS.latent_dim == 6:
+                    z_sample = np.array([[xi, yi,0,0,0,0]])
+                if FLAGS.latent_dim == 8:
+                    z_sample = np.array([[xi, yi,0,0,0,0,0,0]])
+                if FLAGS.latent_dim == 24:
+                    z_sample = np.array([[xi, yi,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
+                if FLAGS.latent_dim == 25:
+                    z_sample = np.array([[xi, yi,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
 
                 x_decoded = VAE.generate_sample(z_sample)
                 generate_data = x_decoded[0].reshape(digit_size, digit_size, digit_size)
@@ -160,8 +170,8 @@ def main():
                 digit1 = np.reshape(digit_axial, [patch_side, patch_side])
                 digit2 = np.reshape(digit_coronal, [patch_side, patch_side])
                 digit3 = np.reshape(digit_sagital, [patch_side, patch_side])
-                # plt.imshow(digit, cmap='Greys_r')
-                # plt.savefig(str(i) + '@' + str(j) + 'fig.png')
+                fig2 = plt.imshow(digit_axial, cmap='Greys_r', interpolation='none')
+                plt.savefig(FLAGS.outdir + 'morphing/' + str(i) + '@' + str(j) + 'fig.png')
                 figure1[i * digit_size: (i + 1) * digit_size,
                 j * digit_size: (j + 1) * digit_size] = digit1
                 figure2[i * digit_size: (i + 1) * digit_size,
@@ -182,7 +192,7 @@ def main():
         plt.yticks(pixel_range, sample_range_y)
         plt.xlabel("z[0]")
         plt.ylabel("z[1]")
-        plt.imshow(figure1, cmap='Greys_r')
+        plt.imshow(figure1, cmap='Greys_r', interpolation='none')
         plt.savefig(FLAGS.outdir + "digit_axial.png")
         # plt.show()
 
@@ -192,7 +202,7 @@ def main():
         plt.yticks(pixel_range, sample_range_y)
         plt.xlabel("z[0]")
         plt.ylabel("z[1]")
-        plt.imshow(figure2, cmap='Greys_r')
+        plt.imshow(figure2, cmap='Greys_r', interpolation='none')
         plt.savefig(FLAGS.outdir + "digit_coronal.png")
         # plt.show()
 
@@ -202,7 +212,7 @@ def main():
         plt.yticks(pixel_range, sample_range_y)
         plt.xlabel("z[0]")
         plt.ylabel("z[1]")
-        plt.imshow(figure3, cmap='Greys_r')
+        plt.imshow(figure3, cmap='Greys_r', interpolation='none')
         plt.savefig(FLAGS.outdir + "digit_sagital.png")
         # plt.show()
 

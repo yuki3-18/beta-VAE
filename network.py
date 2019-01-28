@@ -161,6 +161,24 @@ def decoder1(input, batch_size, shape_size):
 
     return output
 
+def encoder2(input, latent_dim):
+    encoder = tf.layers.dense(input, 200, activation = tf.nn.relu, name='encoder-01')
+    shape_size = tuple(encoder.get_shape().as_list())
+    output = tf.layers.dense(encoder, 2 * latent_dim, name='encoder-latent')
+
+    return output, shape_size
+
+def decoder2(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 200, activation = tf.nn.relu, name='decoder-01')
+    output = tf.layers.dense(decoder, 9 * 9 * 9, activation = tf.nn.sigmoid)
+
+    return output
+
+def decoder2_tanh(input, batch_size, shape_size):
+    decoder = tf.layers.dense(input, 200, activation = tf.nn.relu, name='decoder-01')
+    output = tf.layers.dense(decoder, 9 * 9 * 9, activation = tf.nn.tanh)
+
+    return output
 
 # for patch5
 def shallow_encoder(input, latent_dim):

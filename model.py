@@ -11,7 +11,7 @@ import numpy as np
 
 class Variational_Autoencoder(object):
 
-    def __init__(self, sess, outdir, beta, latent_dim, batch_size, image_size, encoder, decoder, learning_rate=1e-3):
+    def __init__(self, sess, outdir, beta, latent_dim, batch_size, image_size, encoder, decoder, learning_rate=1e-5):
 
         self._sess = sess
         self._outdir = outdir
@@ -78,7 +78,7 @@ class Variational_Autoencoder(object):
 
     @staticmethod
     def _kl_diagnormal_stdnormal(mu, z_sigma):
-        kl = - 0.5 * tf.reduce_sum(1 + tf.log(tf.square(z_sigma)) - tf.square(mu) - tf.square(z_sigma), axis=-1)
+        kl = - 0.5 * tf.reduce_sum(1 + tf.log(tf.square(z_sigma) + 1e-5) - tf.square(mu) - tf.square(z_sigma), axis=-1)
 
         return kl
 
